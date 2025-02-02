@@ -1,4 +1,5 @@
 import os
+import streamlit as st
 from openagi.actions.files import WriteFileAction
 from openagi.actions.tools.ddg_search import DuckDuckGoNewsSearch
 from openagi.actions.tools.webloader import WebBaseContextTool
@@ -7,18 +8,26 @@ from openagi.llms.groq import GroqModel
 from openagi.memory import Memory
 from openagi.planner.task_decomposer import TaskPlanner
 from openagi.worker import Worker
-from rich.console import Console
 from rich.markdown import Markdown
 
 
-os.environ['GROQ_API_KEY'] = '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'
+# Set environment variables
+os.environ['GROQ_API_KEY'] = 'Groq api'
 os.environ['GROQ_MODEL'] = 'llama-3.1-70b-versatile'
 os.environ['GROQ_TEMP'] = '0.3'
 
+# Load model configuration
 groq_config = GroqModel.load_from_env_config()
 llm = GroqModel(config=groq_config)
 
 
+# Streamlit title
+st.title("Startup Analysis Tool")
+
+# Input field for user query
+query = st.text_input("Enter your startup query", value="Analyze the market potential, competition, risks, provide actionable insights, and forecast future outcomes.")
+
+# Define workers
 analysis_worker = Worker(
     role="Analyst",
     instructions="""
@@ -32,7 +41,6 @@ analysis_worker = Worker(
     max_iterations=1,
 )
 
-
 strategy_worker = Worker(
     role="Strategist",
     instructions="""
@@ -44,7 +52,6 @@ strategy_worker = Worker(
     llm=llm,  
     max_iterations=1,
 )
-
 
 writer_reviewer_worker = Worker(
     role="Writer and Reviewer",
@@ -59,13 +66,12 @@ writer_reviewer_worker = Worker(
     force_output=True,
 )
 
-
+# Define admin
 admin = Admin(
     planner=TaskPlanner(human_intervene=False),
     memory=Memory(),
     llm=llm,  
 )
-
 
 admin.assign_workers([
     analysis_worker,
@@ -73,12 +79,15 @@ admin.assign_workers([
     writer_reviewer_worker
 ])
 
+# When the user clicks the button, run the admin task
+if st.button('Analyze'):
+    with st.spinner('Analyzing...'):
+        res = admin.run(
+            query=query,
+            description="Analyze the market potential, competition, risks, provide actionable insights, and forecast future outcomes."
+        )
 
-res = admin.run(
-    query="Evaluate a startup idea focused on developing an AI-powered fitness app that provides personalized workout plans and tracks progress through machine learning.",
-    description="Analyze the market potential, competition, risks, provide actionable insights, and forecast future outcomes.",
-)
+    st.markdown("---")  # Separator
+    st.markdown(f"### Report for '{query}'")
+    st.markdown(Markdown(res))
 
-
-print("-" * 100)  # Separator
-Console().print(Markdown(res))
